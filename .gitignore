@@ -1,0 +1,21 @@
+# Ignore .terraform directories
+**/aws/.terraform/*
+**/yc/.terraform/*
+
+# Ignore .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Ignore terraform files
+**/aws/terraform.*
+**/aws/.terraform.*
+**/yc/terraform.*
+**/yc/.terraform.*
+
+# Ignore json files
+**/aws/*.json
+**/yc/*.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
