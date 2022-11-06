@@ -13,11 +13,11 @@ output "caller_user" {
 }
 
 output "current_region" {
-  value = var.aws_region
+  value = var.aws_default_region
 }
 
 output "IPv4_ec2_instance" {
-  value = aws_instance.aws_test_ec2.*.private_ip
+  value = aws_instance.aws_ec2_tf_v1.*.private_ip
 }
 
 output "IPv4_ec2_subnet_id" {

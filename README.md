@@ -1,102 +1,233 @@
-# Домашнее задание к занятию "7.2. Облачные провайдеры и синтаксис Terraform."
+# Домашнее задание к занятию "7.3. Основы и принцип работы Терраформ"
 
-Зачастую разбираться в новых инструментах гораздо интересней понимая то, как они работают изнутри.
-Поэтому в рамках первого *необязательного* задания предлагается завести свою учетную запись в AWS (Amazon Web Services) или Yandex.Cloud.
-Идеально будет познакомится с обоими облаками, потому что они отличаются.
+## Задача 1. Создадим бэкэнд в S3 (необязательно, но крайне желательно).
 
-## Задача 1 (вариант с AWS). Регистрация в aws и знакомство с основами (необязательно, но крайне желательно).
+Если в рамках предыдущего задания у вас уже есть аккаунт AWS, то давайте продолжим знакомство со взаимодействием
+терраформа и aws. 
 
-Остальные задания можно будет выполнять и без этого аккаунта, но с ним можно будет увидеть полный цикл процессов.
-
-AWS предоставляет достаточно много бесплатных ресурсов в первый год после регистрации, подробно описано [здесь](https://aws.amazon.com/free/).
-1. Создайте аккаут aws.
-1. Установите c aws-cli https://aws.amazon.com/cli/.
-1. Выполните первичную настройку aws-sli https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html.
-1. Создайте IAM политику для терраформа c правами
-    * AmazonEC2FullAccess
-    * AmazonS3FullAccess
-    * AmazonDynamoDBFullAccess
-    * AmazonRDSFullAccess
-    * CloudWatchFullAccess
-    * IAMFullAccess
-1. Добавьте переменные окружения
-    ```
-    export AWS_ACCESS_KEY_ID=(your access key id)
-    export AWS_SECRET_ACCESS_KEY=(your secret access key)
-    ```
-1. Создайте, остановите и удалите ec2 инстанс (любой с пометкой `free tier`) через веб интерфейс.
-
-В виде результата задания приложите вывод команды `aws configure list`.
+1. Создайте s3 бакет, iam роль и пользователя от которого будет работать терраформ. Можно создать отдельного пользователя,
+а можно использовать созданного в рамках предыдущего задания, просто добавьте ему необходимы права, как описано 
+[здесь](https://www.terraform.io/docs/backends/types/s3.html).
+1. Зарегистрируйте бэкэнд в терраформ проекте как описано по ссылке выше. 
 
 #### Ответ
 
-Аккаунт создан, вывод `aws configure list`:
+Сразу определим два `workspace` - `stage` и `prod`. \
 ```
-22:52:32 [vainoord] @~/netology/netology_iac #tag:[main] $> aws configure list
-      Name                    Value             Type    Location
-      ----                    -----             ----    --------
-   profile          Terraform_admin              env    ['AWS_PROFILE', 'AWS_DEFAULT_PROFILE']
-access_key     ****************7V54              env    
-secret_key     ****************IAUg              env    
-    region             eu-central-1      config-file    ~/.aws/config
+13:54:28 | ~/netology/netology_iac/aws [main]$> terraform workspace new stage
+Created and switched to workspace "stage"!
+
+You're now on a new, empty workspace. Workspaces isolate their state,
+so if you run "terraform plan" Terraform will not see any existing state
+for this configuration.
+13:54:36 | ~/netology/netology_iac/aws [main]$> terraform workspace new prod
+Created and switched to workspace "prod"!
+
+You're now on a new, empty workspace. Workspaces isolate their state,
+so if you run "terraform plan" Terraform will not see any existing state
+for this configuration.
 ```
+Добавим блок backend без таблицы `dynamodb`, т.к. для этого требуется существующая таблица dynamodb в aws. Использование backend'a в блоке `terraform`:
+```
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
 
-## Задача 1 (Вариант с Yandex.Cloud). Регистрация в ЯО и знакомство с основами (необязательно, но крайне желательно).
+  ###
+  # Using the s3 backend
+  ###
+  backend "s3" {
+    bucket = "vainoord-s3-bucket"
+    encrypt = true
+    key = "netology/terraform.tfstate"
+    region = "eu-central-1"
+  }
+}
+```
+Пользователю в AWS добавлена группа `AmazonS3FullAccess`.
 
-1. Подробная инструкция на русском языке содержится [здесь](https://cloud.yandex.ru/docs/solutions/infrastructure-management/terraform-quickstart).
-2. Обратите внимание на период бесплатного использования после регистрации аккаунта.
-3. Используйте раздел "Подготовьте облако к работе" для регистрации аккаунта. Далее раздел "Настройте провайдер" для подготовки
-базового терраформ конфига.
-4. Воспользуйтесь [инструкцией](https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs) на сайте терраформа, что бы
-не указывать авторизационный токен в коде, а терраформ провайдер брал его из переменных окружений.
+## Задача 2. Инициализируем проект и создаем воркспейсы. 
+
+1. Выполните `terraform init`:
+    * если был создан бэкэнд в S3, то терраформ создат файл стейтов в S3 и запись в таблице 
+dynamodb.
+    * иначе будет создан локальный файл со стейтами.  
+1. Создайте два воркспейса `stage` и `prod`.
+1. В уже созданный `aws_instance` добавьте зависимость типа инстанса от вокспейса, что бы в разных ворскспейсах 
+использовались разные `instance_type`.
+1. Добавим `count`. Для `stage` должен создаться один экземпляр `ec2`, а для `prod` два. 
+1. Создайте рядом еще один `aws_instance`, но теперь определите их количество при помощи `for_each`, а не `count`.
+1. Что бы при изменении типа инстанса не возникло ситуации, когда не будет ни одного инстанса добавьте параметр
+жизненного цикла `create_before_destroy = true` в один из рессурсов `aws_instance`.
+1. При желании поэкспериментируйте с другими параметрами и рессурсами.
+
+В виде результата работы пришлите:
+* Вывод команды `terraform workspace list`.
+* Вывод команды `terraform plan` для воркспейса `prod`.  
+
 
 #### Ответ
 
-Настройки выполнены:
+Мой список `workspaces`:
 ```
-17:20:51 [vainoord] @~/terraform-cloud/netology #tag:[] $> yc config list
-token: ****
-cloud-id: ****
-folder-id: b1gepgjl997vgpho9jtn
-compute-default-zone: ru-central1-a
+13:05:50 | ~/netology/netology_iac/aws [main]$> terraform workspace list
+  default
+* prod
+  stage
+
 ```
-## Задача 2. Создание aws ec2 или yandex_compute_instance через терраформ.
+Вывод `terraform plan` для воркспейса `prod` ниже. Я сократил размеры блоков, т.к. большая часть параметров ресурсов будет определена по умолчанию в процессе их создания:
+```
+Terraform will perform the following actions:
 
-1. В каталоге `terraform` вашего основного репозитория, который был создан в начале курсе, создайте файл `main.tf` и `versions.tf`.
-2. Зарегистрируйте провайдер
-   1. для [aws](https://registry.terraform.io/providers/hashicorp/aws/latest/docs). В файл `main.tf` добавьте
-   блок `provider`, а в `versions.tf` блок `terraform` с вложенным блоком `required_providers`. Укажите любой выбранный вами регион
-   внутри блока `provider`.
-   2. либо для [yandex.cloud](https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs). Подробную инструкцию можно найти
-   [здесь](https://cloud.yandex.ru/docs/solutions/infrastructure-management/terraform-quickstart).
-3. Внимание! В гит репозиторий нельзя пушить ваши личные ключи доступа к аккаунту. Поэтому в предыдущем задании мы указывали
-их в виде переменных окружения.
-4. В файле `main.tf` воспользуйтесь блоком `data "aws_ami` для поиска ami образа последнего Ubuntu.  
-5. В файле `main.tf` создайте рессурс
-   1. либо [ec2 instance](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance).
-   Постарайтесь указать как можно больше параметров для его определения. Минимальный набор параметров указан в первом блоке
-   `Example Usage`, но желательно, указать большее количество параметров.
-   2. либо [yandex_compute_image](https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs/resources/compute_image).
-6. Также в случае использования aws:
-   1. Добавьте data-блоки `aws_caller_identity` и `aws_region`.
-   2. В файл `outputs.tf` поместить блоки `output` с данными об используемых в данный момент:
-       * AWS account ID,
-       * AWS user ID,
-       * AWS регион, который используется в данный момент,
-       * Приватный IP ec2 инстансы,
-       * Идентификатор подсети в которой создан инстанс.  
-7. Если вы выполнили первый пункт, то добейтесь того, что бы команда `terraform plan` выполнялась без ошибок.
+# aws_instance.aws_ec2_tf_v1[0] will be created
+  + resource "aws_instance" "aws_ec2_tf_v1" {
+      + ami                                  = "ami-0965bd5ba4d59211c"
+      + instance_type                        = "t2.micro"
+      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
+      + tags                                 = {
+          + "Name" = "Ubuntu_ec2"
+        }
+      + tags_all                             = {
+          + "Name" = "Ubuntu_ec2"
+        }
+      + vpc_security_group_ids               = [
+            + "sg-072e19e231db8d9e8",
+          ]
+
+      **********************
+    }
+
+# aws_instance.aws_ec2_tf_v1[1] will be created
+  + resource "aws_instance" "aws_ec2_tf_v1" {
+      + ami                                  = "ami-0965bd5ba4d59211c"
+      + instance_type                        = "t2.micro"
+      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
+      + tags                                 = {
+          + "Name" = "Ubuntu_ec2"
+        }
+      + tags_all                             = {
+          + "Name" = "Ubuntu_ec2"
+        }
+      + vpc_security_group_ids               = [
+            + "sg-072e19e231db8d9e8",
+          ]
+
+      **********************
+    }
+
+# aws_instance.aws_ec2_tf_v2["t2.micro"] will be created
+  + resource "aws_instance" "aws_ec2_tf_v2" {
+      + ami                                  = "ami-070b208e993b59cea"
+      + instance_type                        = "t2.micro"
+      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
+      + tags                                 = {
+          + "Name" = "Amazon_ec2"
+        }
+      + tags_all                             = {
+          + "Name" = "Amazon_ec2"
+        }
+      + vpc_security_group_ids               = [
+            + "sg-072e19e231db8d9e8",
+          ]
+
+      **********************
+    }
+
+# aws_instance.aws_ec2_tf_v2["t3.micro"] will be created
+  + resource "aws_instance" "aws_ec2_tf_v2" {
+      + ami                                  = "ami-0965bd5ba4d59211c"
+      + instance_type                        = "t3.micro"
+      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
+      + tags                                 = {
+          + "Name" = "Amazon_ec2"
+        }
+      + tags_all                             = {
+          + "Name" = "Amazon_ec2"
+        }
+      + vpc_security_group_ids               = [
+            + "sg-072e19e231db8d9e8",
+          ]
+
+      **********************
+    }
+
+# aws_network_interface.aws_ec2_iface will be created
+  + resource "aws_network_interface" "aws_ec2_iface" {
+      + id                        = (known after apply)
+      + subnet_id                 = "subnet-06add6ac27ee4cf6c"
+      + tags                      = {
+          + "Name" = "primary_network_interface"
+        }
+      + tags_all                  = {
+          + "Name" = "primary_network_interface"
+        }
+      
+      **********************
+    }
+
+# aws_security_group.tf_servers will be created
+  + resource "aws_security_group" "tf_servers" {
+      + arn                    = (known after apply)
+      + description            = "Dynamic Security Group"
+      + egress                 = [
+          + { ******
+            },
+        ]
+      + ingress                = [
+          + { ******
+            },
+        ]
+    }
+
+# aws_subnet.test_subnet will be created
+  + resource "aws_subnet" "test_subnet" {
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = "eu-central-1a"
+      + cidr_block                                     = "192.168.110.0/26"
+      + tags                                           = {
+          + "Name" = "subnet_example"
+        }
+      + tags_all                                       = {
+          + "Name" = "subnet_example"
+        }
+      + vpc_id                                         = (known after apply)
+
+      **********************
+    }
+
+# aws_vpc.test_network will be created
+  + resource "aws_vpc" "test_network" {
+      + arn                                  = (known after apply)
+      + cidr_block                           = "192.168.110.0/24"
+      + id                                   = (known after apply)
+      + instance_tenancy                     = "default"
+      + tags                                 = {
+          + "Name" = "network_example"
+        }
+      + tags_all                             = {
+          + "Name" = "network_example"
+        }
+      
+      **********************
+    }
 
 
-В качестве результата задания предоставьте:
-1. Ответ на вопрос: при помощи какого инструмента (из разобранных на прошлом занятии) можно создать свой образ ami?
-1. Ссылку на репозиторий с исходной конфигурацией терраформа.  
+Plan: 8 to add, 0 to change, 0 to destroy.
 
-#### Ответ
-
-1. Для AWS образ можно создать через Cloud Formation, AWS Workspace или из имеющихся ami.
-2. Ссылка на репозиторий: https://github.com/Vainoord/netology_iac
-
+Changes to Outputs:
+  + IPv4_ec2_instance  = [
+      + (known after apply),
+    ]
+  + IPv4_ec2_subnet_id = [
+      + (known after apply),
+    ]
+  + current_region     = "eu-central-1"
+```
 ---
 
 ### Как cдавать задание

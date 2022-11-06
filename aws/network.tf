@@ -16,12 +16,15 @@ resource "aws_subnet" "test_subnet" {
   }
 }
 
-resource "aws_network_interface" "test_iface" {
+resource "aws_network_interface" "aws_ec2_iface" {
   subnet_id   = aws_subnet.test_subnet.id
-  private_ips = ["192.168.110.11"]
+  #security_groups = ["sg-0b155e42ee1714fbc"]
+  security_groups = [aws_security_group.tf_servers.id]
+  #private_ips = ["192.168.110.11"]
 
   tags = {
     Name = "primary_network_interface"
   }
 }
+
 
