@@ -72,15 +72,17 @@ variable "aws_zone_residence" {
 # Define an instance in depends of the current workspace 
 locals {
   aws_instance_type_map = {
-    stage = var.aws_instance_t3
-    prod = var.aws_instance_t2
-    default = var.aws_instance_t2
+    #stage = var.aws_instance_t3
+    #prod = var.aws_instance_t2
+    #default = var.aws_instance_t2
+    study-dev-eu-central-vainoord-netology = var.aws_instance_t2
   }
 
   aws_instance_count_map = {
-    stage = 1
-    prod = 2
-    default = 1
+    #stage = 1
+    #prod = 2
+    #default = 1
+    study-dev-eu-central-vainoord-netology = 1
   }
   aws_instances_list = {
     "t2.micro" = data.aws_ami.latest_amazon_linux.id
@@ -88,17 +90,3 @@ locals {
   }
   #aws_instances_ips = {}
 }
-# Define counts of instances in depends of the current workspace
-/*locals {
-  aws_instance_count_map = {
-    stage = 1
-    prod = 2
-    default = 1
-  }
-}*/
-# Define list of instances
-/*locals {
-  custom_instances = {
-
-  }
-}*/

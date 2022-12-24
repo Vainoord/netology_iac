@@ -1,233 +1,53 @@
-# Домашнее задание к занятию "7.3. Основы и принцип работы Терраформ"
+# Домашнее задание к занятию "7.4. Средства командной работы над инфраструктурой."
 
-## Задача 1. Создадим бэкэнд в S3 (необязательно, но крайне желательно).
+## Задача 1. Настроить terraform cloud (необязательно, но крайне желательно).
 
-Если в рамках предыдущего задания у вас уже есть аккаунт AWS, то давайте продолжим знакомство со взаимодействием
-терраформа и aws. 
+В это задании предлагается познакомиться со средством командой работы над инфраструктурой предоставляемым
+разработчиками терраформа. 
 
-1. Создайте s3 бакет, iam роль и пользователя от которого будет работать терраформ. Можно создать отдельного пользователя,
-а можно использовать созданного в рамках предыдущего задания, просто добавьте ему необходимы права, как описано 
-[здесь](https://www.terraform.io/docs/backends/types/s3.html).
-1. Зарегистрируйте бэкэнд в терраформ проекте как описано по ссылке выше. 
+1. Зарегистрируйтесь на [https://app.terraform.io/](https://app.terraform.io/).
+(регистрация бесплатная и не требует использования платежных инструментов).
+1. Создайте в своем github аккаунте (или другом хранилище репозиториев) отдельный репозиторий с
+ конфигурационными файлами прошлых занятий (или воспользуйтесь любым простым конфигом).
+1. Зарегистрируйте этот репозиторий в [https://app.terraform.io/](https://app.terraform.io/).
+1. Выполните plan и apply. 
 
-#### Ответ
+В качестве результата задания приложите снимок экрана с успешным применением конфигурации.
 
-Сразу определим два `workspace` - `stage` и `prod`. \
-```
-13:54:28 | ~/netology/netology_iac/aws [main]$> terraform workspace new stage
-Created and switched to workspace "stage"!
+### Ответ
 
-You're now on a new, empty workspace. Workspaces isolate their state,
-so if you run "terraform plan" Terraform will not see any existing state
-for this configuration.
-13:54:36 | ~/netology/netology_iac/aws [main]$> terraform workspace new prod
-Created and switched to workspace "prod"!
+Результат развертывания конфигурации через terraform cloud:
+![Развернутая конфигурация](assets/Scr1.png) 
 
-You're now on a new, empty workspace. Workspaces isolate their state,
-so if you run "terraform plan" Terraform will not see any existing state
-for this configuration.
-```
-Добавим блок backend без таблицы `dynamodb`, т.к. для этого требуется существующая таблица dynamodb в aws. Использование backend'a в блоке `terraform`:
-```
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
-  }
+## Задача 2. Написать серверный конфиг для атлантиса. 
 
-  ###
-  # Using the s3 backend
-  ###
-  backend "s3" {
-    bucket = "vainoord-s3-bucket"
-    encrypt = true
-    key = "netology/terraform.tfstate"
-    region = "eu-central-1"
-  }
-}
-```
-Пользователю в AWS добавлена группа `AmazonS3FullAccess`.
+Смысл задания – познакомиться с документацией 
+о [серверной](https://www.runatlantis.io/docs/server-side-repo-config.html) конфигурации и конфигурации уровня 
+ [репозитория](https://www.runatlantis.io/docs/repo-level-atlantis-yaml.html).
 
-## Задача 2. Инициализируем проект и создаем воркспейсы. 
+Создай `server.yaml` который скажет атлантису:
+1. Укажите, что атлантис должен работать только для репозиториев в вашем github (или любом другом) аккаунте.
+1. На стороне клиентского конфига разрешите изменять `workflow`, то есть для каждого репозитория можно 
+будет указать свои дополнительные команды. 
+1. В `workflow` используемом по-умолчанию сделайте так, что бы во время планирования не происходил `lock` состояния.
 
-1. Выполните `terraform init`:
-    * если был создан бэкэнд в S3, то терраформ создат файл стейтов в S3 и запись в таблице 
-dynamodb.
-    * иначе будет создан локальный файл со стейтами.  
-1. Создайте два воркспейса `stage` и `prod`.
-1. В уже созданный `aws_instance` добавьте зависимость типа инстанса от вокспейса, что бы в разных ворскспейсах 
-использовались разные `instance_type`.
-1. Добавим `count`. Для `stage` должен создаться один экземпляр `ec2`, а для `prod` два. 
-1. Создайте рядом еще один `aws_instance`, но теперь определите их количество при помощи `for_each`, а не `count`.
-1. Что бы при изменении типа инстанса не возникло ситуации, когда не будет ни одного инстанса добавьте параметр
-жизненного цикла `create_before_destroy = true` в один из рессурсов `aws_instance`.
-1. При желании поэкспериментируйте с другими параметрами и рессурсами.
+Создай `atlantis.yaml` который, если поместить в корень terraform проекта, скажет атлантису:
+1. Надо запускать планирование и аплай для двух воркспейсов `stage` и `prod`.
+1. Необходимо включить автопланирование при изменении любых файлов `*.tf`.
 
-В виде результата работы пришлите:
-* Вывод команды `terraform workspace list`.
-* Вывод команды `terraform plan` для воркспейса `prod`.  
+В качестве результата приложите ссылку на файлы `server.yaml` и `atlantis.yaml`.
 
+## Задача 3. Знакомство с каталогом модулей. 
 
-#### Ответ
+1. В [каталоге модулей](https://registry.terraform.io/browse/modules) найдите официальный модуль от aws для создания
+`ec2` инстансов. 
+2. Изучите как устроен модуль. Задумайтесь, будете ли в своем проекте использовать этот модуль или непосредственно 
+ресурс `aws_instance` без помощи модуля?
+3. В рамках предпоследнего задания был создан ec2 при помощи ресурса `aws_instance`. 
+Создайте аналогичный инстанс при помощи найденного модуля.   
 
-Мой список `workspaces`:
-```
-13:05:50 | ~/netology/netology_iac/aws [main]$> terraform workspace list
-  default
-* prod
-  stage
+В качестве результата задания приложите ссылку на созданный блок конфигураций. 
 
-```
-Вывод `terraform plan` для воркспейса `prod` ниже. Я сократил размеры блоков, т.к. большая часть параметров ресурсов будет определена по умолчанию в процессе их создания:
-```
-Terraform will perform the following actions:
-
-# aws_instance.aws_ec2_tf_v1[0] will be created
-  + resource "aws_instance" "aws_ec2_tf_v1" {
-      + ami                                  = "ami-0965bd5ba4d59211c"
-      + instance_type                        = "t2.micro"
-      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
-      + tags                                 = {
-          + "Name" = "Ubuntu_ec2"
-        }
-      + tags_all                             = {
-          + "Name" = "Ubuntu_ec2"
-        }
-      + vpc_security_group_ids               = [
-            + "sg-072e19e231db8d9e8",
-          ]
-
-      **********************
-    }
-
-# aws_instance.aws_ec2_tf_v1[1] will be created
-  + resource "aws_instance" "aws_ec2_tf_v1" {
-      + ami                                  = "ami-0965bd5ba4d59211c"
-      + instance_type                        = "t2.micro"
-      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
-      + tags                                 = {
-          + "Name" = "Ubuntu_ec2"
-        }
-      + tags_all                             = {
-          + "Name" = "Ubuntu_ec2"
-        }
-      + vpc_security_group_ids               = [
-            + "sg-072e19e231db8d9e8",
-          ]
-
-      **********************
-    }
-
-# aws_instance.aws_ec2_tf_v2["t2.micro"] will be created
-  + resource "aws_instance" "aws_ec2_tf_v2" {
-      + ami                                  = "ami-070b208e993b59cea"
-      + instance_type                        = "t2.micro"
-      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
-      + tags                                 = {
-          + "Name" = "Amazon_ec2"
-        }
-      + tags_all                             = {
-          + "Name" = "Amazon_ec2"
-        }
-      + vpc_security_group_ids               = [
-            + "sg-072e19e231db8d9e8",
-          ]
-
-      **********************
-    }
-
-# aws_instance.aws_ec2_tf_v2["t3.micro"] will be created
-  + resource "aws_instance" "aws_ec2_tf_v2" {
-      + ami                                  = "ami-0965bd5ba4d59211c"
-      + instance_type                        = "t3.micro"
-      + subnet_id                            = "subnet-06add6ac27ee4cf6c"
-      + tags                                 = {
-          + "Name" = "Amazon_ec2"
-        }
-      + tags_all                             = {
-          + "Name" = "Amazon_ec2"
-        }
-      + vpc_security_group_ids               = [
-            + "sg-072e19e231db8d9e8",
-          ]
-
-      **********************
-    }
-
-# aws_network_interface.aws_ec2_iface will be created
-  + resource "aws_network_interface" "aws_ec2_iface" {
-      + id                        = (known after apply)
-      + subnet_id                 = "subnet-06add6ac27ee4cf6c"
-      + tags                      = {
-          + "Name" = "primary_network_interface"
-        }
-      + tags_all                  = {
-          + "Name" = "primary_network_interface"
-        }
-      
-      **********************
-    }
-
-# aws_security_group.tf_servers will be created
-  + resource "aws_security_group" "tf_servers" {
-      + arn                    = (known after apply)
-      + description            = "Dynamic Security Group"
-      + egress                 = [
-          + { ******
-            },
-        ]
-      + ingress                = [
-          + { ******
-            },
-        ]
-    }
-
-# aws_subnet.test_subnet will be created
-  + resource "aws_subnet" "test_subnet" {
-      + assign_ipv6_address_on_creation                = false
-      + availability_zone                              = "eu-central-1a"
-      + cidr_block                                     = "192.168.110.0/26"
-      + tags                                           = {
-          + "Name" = "subnet_example"
-        }
-      + tags_all                                       = {
-          + "Name" = "subnet_example"
-        }
-      + vpc_id                                         = (known after apply)
-
-      **********************
-    }
-
-# aws_vpc.test_network will be created
-  + resource "aws_vpc" "test_network" {
-      + arn                                  = (known after apply)
-      + cidr_block                           = "192.168.110.0/24"
-      + id                                   = (known after apply)
-      + instance_tenancy                     = "default"
-      + tags                                 = {
-          + "Name" = "network_example"
-        }
-      + tags_all                             = {
-          + "Name" = "network_example"
-        }
-      
-      **********************
-    }
-
-
-Plan: 8 to add, 0 to change, 0 to destroy.
-
-Changes to Outputs:
-  + IPv4_ec2_instance  = [
-      + (known after apply),
-    ]
-  + IPv4_ec2_subnet_id = [
-      + (known after apply),
-    ]
-  + current_region     = "eu-central-1"
-```
 ---
 
 ### Как cдавать задание
